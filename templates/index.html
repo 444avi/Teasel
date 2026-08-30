@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Avilytics scalar-ladder payoff and market-coherence analysis">
+  <title>Avilytics · Ladder Payoff Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Avilytics home">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>Avilytics</span>
+    </a>
+    <div class="topbar-right">
+      <span class="snapshot-pill"><span></span> Snapshot mode</span>
+      <span class="desk-label">Research desk / 01</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Scalar ladder payoff lab</p>
+        <h1>See the whole position.<br><em>Not just the legs.</em></h1>
+      </div>
+      <p class="hero-copy">Cross the real ask, account for fees, and inspect every exclusive outcome bin before capital goes to work.</p>
+    </section>
+
+    <section class="fetch-panel" aria-label="Load a Kalshi event">
+      <label for="event-input">Kalshi event</label>
+      <div class="fetch-row">
+        <span class="link-glyph" aria-hidden="true">↗</span>
+        <input id="event-input" type="text" autocomplete="off" placeholder="Paste event link or ticker">
+        <select id="probability-source" aria-label="Probability source">
+          <option value="mid">Mid probability</option>
+          <option value="displayed">Displayed chance</option>
+        </select>
+        <button id="fetch-button" class="primary-button">Fetch ladder <span>→</span></button>
+      </div>
+      <div id="fetch-message" class="fetch-message" role="status"></div>
+    </section>
+
+    <section id="workspace" class="workspace is-loading" aria-live="polite">
+      <div class="event-strip">
+        <div>
+          <div class="event-kicker"><span id="event-status-dot"></span><span id="event-ticker">Loading</span></div>
+          <h2 id="event-title">Preparing ladder…</h2>
+        </div>
+        <div class="event-meta">
+          <span id="rung-count">— rungs</span>
+          <span>Ask-side entry</span>
+          <span id="event-mode">Snapshot</span>
+        </div>
+      </div>
+
+      <div id="warnings" class="warnings" hidden></div>
+
+      <div class="dashboard-grid">
+        <section class="ladder-card card">
+          <div class="card-heading">
+            <div>
+              <p class="section-index">01 / Build position</p>
+              <h3>Ladder</h3>
+            </div>
+            <p>Shift-click a side to fill a range</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Threshold</th>
+                  <th>YES ask</th>
+                  <th>NO ask</th>
+                  <th>P(above)</th>
+                  <th>Position</th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody id="ladder-body"></tbody>
+            </table>
+          </div>
+          <div class="fee-bar">
+            <label class="switch-label">
+              <input type="checkbox" id="maker-toggle">
+              <span class="switch"><span></span></span>
+              Use maker orders <small>zero fees</small>
+            </label>
+            <label class="rate-label">Taker rate <input id="fee-rate" type="number" min="0" max="1" step="0.01" value="0.07"></label>
+          </div>
+        </section>
+
+        <section class="analysis-card card">
+          <div class="card-heading">
+            <div>
+              <p class="section-index">02 / Outcome map</p>
+              <h3>Payoff shape</h3>
+            </div>
+            <div class="legend"><span class="gain-dot"></span> Gain <span class="loss-dot"></span> Loss</div>
+          </div>
+          <div id="chart-shell" class="chart-shell">
+            <svg id="payoff-chart" role="img" aria-label="Step-function net payoff by outcome bin"></svg>
+            <div id="chart-empty" class="chart-empty">Select a side and quantity to map payoff</div>
+          </div>
+          <div class="bin-strip" id="bin-strip"></div>
+        </section>
+
+        <section class="metrics-card card">
+          <div class="card-heading compact">
+            <div>
+              <p class="section-index">03 / Position diagnostics</p>
+              <h3>Risk &amp; edge</h3>
+            </div>
+            <span id="guard-badge" class="guard-badge good"><i></i> Coherent</span>
+          </div>
+          <div class="metrics-grid">
+            <div class="metric primary"><span>Net cost</span><strong id="metric-cost">$0.00</strong><small id="metric-fees">incl. $0.00 fees</small></div>
+            <div class="metric"><span>Capital at risk</span><strong id="metric-risk">$0.00</strong><small>max possible loss</small></div>
+            <div class="metric"><span>Max gain</span><strong id="metric-gain">$0.00</strong><small>best outcome bin</small></div>
+            <div class="metric"><span>P(profit)</span><strong id="metric-profit-prob">—</strong><small>market distribution</small></div>
+            <div class="metric ev"><span>Market-implied EV <b>diagnostic</b></span><strong id="metric-ev">—</strong><small id="ev-note">not a buy signal</small></div>
+          </div>
+          <div id="guards" class="guards"><span class="guard-icon">✓</span><p>No coherence flags in this snapshot.</p></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>AVILYTICS / INTERNAL RESEARCH</span><span>Prices are snapshots. Review liquidity before execution.</span></footer>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
