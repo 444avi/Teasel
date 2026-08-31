@@ -138,12 +138,44 @@ function renderAnalysis(result) {
   renderChart(result.bins, result.selected_leg_count);
 }
 
+function displayThreshold(value) {
+  return Number(value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function payoffRangeLabel(firstBin, lastBin) {
+  const lower = firstBin.bin.lower;
+  const upper = lastBin.bin.upper;
+  if (lower === null || lower === undefined) return `≤ $${displayThreshold(upper)}`;
+  if (upper === null || upper === undefined) return `≥ $${displayThreshold(lower)}`;
+  return `($${displayThreshold(lower)}, $${displayThreshold(upper)}]`;
+}
+
+function compactPayoffBins(bins) {
+  const groups = [];
+  bins.forEach(bin => {
+    const current = groups[groups.length - 1];
+    if (current && current.net_cents === bin.net_cents) {
+      current.last = bin;
+      current.binCount += 1;
+      if (current.probability !== null && bin.probability !== null) current.probability += bin.probability;
+      else current.probability = null;
+      return;
+    }
+    groups.push({...bin, first: bin, last: bin, binCount: 1});
+  });
+  return groups.map(group => ({
+    ...group,
+    bin: {...group.bin, label: payoffRangeLabel(group.first, group.last)}
+  }));
+}
+
 function renderChart(bins, legCount) {
   const svg = $("#payoff-chart");
   const empty = $("#chart-empty");
   const strip = $("#bin-strip");
-  strip.style.gridTemplateColumns = `repeat(${bins.length}, minmax(0, 1fr))`;
-  strip.innerHTML = bins.map(item => `<div class="bin-item ${item.net_cents > 0 ? "gain" : item.net_cents < 0 ? "loss" : ""}"><span>${escapeHtml(item.bin.label)}</span><strong>${money(item.net_cents, true)}</strong></div>`).join("");
+  const displayBins = compactPayoffBins(bins);
+  strip.style.gridTemplateColumns = `repeat(${displayBins.length}, minmax(0, 1fr))`;
+  strip.innerHTML = displayBins.map(item => `<div class="bin-item ${item.net_cents > 0 ? "gain" : item.net_cents < 0 ? "loss" : ""}" title="${escapeHtml(item.bin.label)}"><span>${escapeHtml(item.bin.label)}</span><strong>${money(item.net_cents, true)}</strong></div>`).join("");
   if (!legCount) {
     svg.innerHTML = "";
     empty.hidden = false;
@@ -151,11 +183,11 @@ function renderChart(bins, legCount) {
   }
   empty.hidden = true;
   const width = 620, height = 250, pad = {l: 49, r: 18, t: 20, b: 20};
-  const values = bins.map(item => Number(item.net_cents));
+  const values = displayBins.map(item => Number(item.net_cents));
   let min = Math.min(0, ...values), max = Math.max(0, ...values);
   const range = Math.max(50, max - min);
   min -= range * .18; max += range * .18;
-  const x = index => pad.l + index * (width - pad.l - pad.r) / bins.length;
+  const x = index => pad.l + index * (width - pad.l - pad.r) / displayBins.length;
   const y = value => pad.t + (max - value) * (height - pad.t - pad.b) / (max - min);
   const zeroY = y(0);
   let stepPath = `M ${x(0)} ${y(values[0])}`;

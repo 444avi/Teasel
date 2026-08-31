@@ -12,7 +12,7 @@ python3 -m venv .venv
 .venv/bin/python app.py
 ```
 
-Open `http://127.0.0.1:5000`. The app starts with the pinned WTI example; paste
+Open `http://127.0.0.1:5050`. The app starts with the pinned WTI example; paste
 a Kalshi event link or ticker to replace it with a live public snapshot.
 
 ## Test

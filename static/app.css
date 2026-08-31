@@ -77,8 +77,9 @@ h1 em { color: var(--coral); font-style: normal; font-weight: 500; }
 .card-heading h3 { margin: 0; font-size: 19px; letter-spacing: -.035em; }
 .card-heading .section-index { margin-bottom: 6px; font-size: 8px; color: var(--muted); }
 .card-heading > p { color: var(--muted); font-size: 10px; }
-.ladder-card { grid-row: 1 / span 2; }
-.analysis-card, .metrics-card { min-width: 0; }
+.ladder-card, .right-rail { min-width: 0; }
+.right-rail { display: flex; flex-direction: column; gap: 18px; }
+.analysis-card, .metrics-card { min-width: 0; width: 100%; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
@@ -126,7 +127,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .chart-fill-loss { fill: rgba(241,111,92,.10); }
 .chart-point { stroke: var(--card); stroke-width: 2; }
 .bin-strip { display: grid; border-top: 1px solid var(--line); }
-.bin-item { min-width: 0; padding: 10px 5px 12px; text-align: center; border-right: 1px solid #e6e4de; }
+.bin-item { min-width: 0; padding: 10px 7px 12px; text-align: center; border-right: 1px solid #e6e4de; }
 .bin-item:last-child { border-right: 0; }
 .bin-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-family: var(--mono); font-size: 7px; }
 .bin-item strong { display: block; margin-top: 4px; font-family: var(--mono); font-size: 10px; }
@@ -162,8 +163,7 @@ footer { width: min(1480px, calc(100% - clamp(32px, 7vw, 112px))); margin: 0 aut
 
 @media (max-width: 1050px) {
   .dashboard-grid { grid-template-columns: 1fr; }
-  .ladder-card { grid-row: auto; }
-  .analysis-card { grid-row: auto; }
+  .right-rail { margin-top: 18px; }
 }
 
 @media (max-width: 720px) {
@@ -177,6 +177,7 @@ footer { width: min(1480px, calc(100% - clamp(32px, 7vw, 112px))); margin: 0 aut
   .event-meta { justify-content: flex-start; }
   .dashboard-grid { display: block; }
   .card { margin-bottom: 16px; }
+  .right-rail { gap: 0; margin-top: 16px; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
   .metric:nth-child(2) { border-right: 0; }
   .metric:nth-child(4) { border-right: 0; }
