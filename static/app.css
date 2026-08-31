@@ -28,12 +28,15 @@ button { cursor: pointer; }
   height: 72px; padding: 0 clamp(24px, 5vw, 78px); display: flex; align-items: center;
   justify-content: space-between; border-bottom: 1px solid rgba(23,35,58,.14); background: rgba(242,240,234,.9);
 }
-.brand { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -.04em; }
+.brand { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
 .brand-mark { display: flex; align-items: end; gap: 3px; height: 25px; width: 27px; }
 .brand-mark i { display: block; width: 6px; background: var(--navy); border-radius: 1px; transform: skew(-15deg); }
 .brand-mark i:nth-child(1) { height: 10px; }
 .brand-mark i:nth-child(2) { height: 18px; background: var(--coral); }
 .brand-mark i:nth-child(3) { height: 25px; }
+.brand-copy { display: flex; align-items: baseline; gap: 10px; }
+.brand-copy strong { font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
+.brand-copy small { padding-left: 10px; border-left: 1px solid #c7c8c3; color: #626b78; font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
 .topbar-right { display: flex; align-items: center; gap: 24px; color: var(--muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .snapshot-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #c9cac4; border-radius: 20px; }
 .snapshot-pill span { width: 6px; height: 6px; background: var(--acid-dark); border-radius: 50%; box-shadow: 0 0 0 3px rgba(123,162,30,.12); }
@@ -168,6 +171,9 @@ footer { width: min(1480px, calc(100% - clamp(32px, 7vw, 112px))); margin: 0 aut
 
 @media (max-width: 720px) {
   .desk-label { display: none; }
+  .brand-copy { display: block; }
+  .brand-copy strong, .brand-copy small { display: block; }
+  .brand-copy small { margin-top: 2px; padding: 0; border: 0; font-size: 7px; }
   main { width: calc(100% - 28px); }
   .hero { min-height: 0; grid-template-columns: 1fr; gap: 24px; padding: 42px 0 34px; }
   .fetch-row { grid-template-columns: 20px 1fr; }

@@ -10,7 +10,9 @@ class AppTests(unittest.TestCase):
         self.client = app.test_client()
 
     def test_home_and_demo(self):
-        self.assertEqual(self.client.get("/").status_code, 200)
+        home = self.client.get("/")
+        self.assertEqual(home.status_code, 200)
+        self.assertIn(b"Arboretum Investments", home.data)
         demo = self.client.get("/api/demo").get_json()
         self.assertEqual(len(demo["rungs"]), 4)
 
