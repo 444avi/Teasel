@@ -40,6 +40,10 @@ def _demo_snapshot() -> dict:
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    # This is a local research tool; UI edits should appear without requiring
+    # the long-running snapshot server to be restarted.
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
 
     @app.get("/")
     def index():
