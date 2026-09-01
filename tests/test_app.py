@@ -19,11 +19,12 @@ class AppTests(unittest.TestCase):
     def test_pinned_position_through_api_with_fees(self):
         demo = self.client.get("/api/demo").get_json()
         sides = ["NO", "YES", "NO", "YES"]
-        for rung, side in zip(demo["rungs"], sides, strict=True):
+        for rung, side in zip(demo["rungs"], sides):
             rung.update(side=side, qty=1)
         response = self.client.post("/api/analyze", json={"rungs": demo["rungs"], "fee_rate": .07})
         self.assertEqual(response.status_code, 200)
         result = response.get_json()
+        self.assertEqual(result["selected_leg_count"], 4)
         self.assertEqual(result["total_cost_cents"], 180)
         self.assertEqual(result["max_loss_cents"], 80)
         self.assertEqual([item["net_cents"] for item in result["bins"]], [20, -80, 20, -80, 20])
@@ -31,7 +32,7 @@ class AppTests(unittest.TestCase):
     def test_maker_toggle_reproduces_fee_free_acceptance_case(self):
         demo = self.client.get("/api/demo").get_json()
         sides = ["NO", "YES", "NO", "YES"]
-        for rung, side in zip(demo["rungs"], sides, strict=True):
+        for rung, side in zip(demo["rungs"], sides):
             rung.update(side=side, qty=1)
         response = self.client.post(
             "/api/analyze",

@@ -215,7 +215,7 @@ def analyze_position(
     total_fees = sum(leg.fee_cents for leg in legs)
     total_cost = total_entry + total_fees
     gross = tuple(
-        sum(cell * leg.qty * 100 for cell, leg in zip(row, legs, strict=True))
+        sum(cell * leg.qty * 100 for cell, leg in zip(row, legs))
         for row in matrix
     )
     net = tuple(value - total_cost for value in gross)
@@ -239,9 +239,9 @@ def analyze_position(
     market_ev: Decimal | None = None
     profit_probability: Decimal | None = None
     if probabilities is not None:
-        market_ev = sum(probability * Decimal(payoff) for probability, payoff in zip(probabilities, net, strict=True))
+        market_ev = sum(probability * Decimal(payoff) for probability, payoff in zip(probabilities, net))
         profit_probability = sum(
-            probability for probability, payoff in zip(probabilities, net, strict=True) if payoff > 0
+            probability for probability, payoff in zip(probabilities, net) if payoff > 0
         )
     ev_arbitrage = market_ev is not None and market_ev > 0
     if ev_arbitrage:

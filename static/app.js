@@ -113,6 +113,7 @@ async function analyze() {
     const result = await response.json();
     if (requestId !== state.requestId) return;
     if (!response.ok) throw new Error(result.error || "Analysis failed");
+    $("#fetch-message").textContent = "";
     renderAnalysis(result);
   } catch (error) {
     $("#fetch-message").textContent = error.message;
