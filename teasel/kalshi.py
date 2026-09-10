@@ -1,4 +1,4 @@
-"""Read-only Kalshi ingestion adapter for Avilytics."""
+"""Read-only Kalshi ingestion adapter for Teasel."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 DEFAULT_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2"
-USER_AGENT = "Avilytics/1.0 (read-only scalar ladder analyzer)"
+USER_AGENT = "Teasel/1.0 (read-only scalar ladder analyzer)"
 
 
 class KalshiIngestError(RuntimeError):

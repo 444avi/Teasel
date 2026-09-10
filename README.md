@@ -1,6 +1,6 @@
-# Avilytics
+# Teasel
 
-Internal scalar-ladder payoff analysis for Kalshi events. Avilytics fetches a
+Internal scalar-ladder payoff analysis for Kalshi events. Teasel fetches a
 read-only market snapshot, prices entries at executable asks, applies the
 Kalshi taker-fee curve, and reports payoff by exclusive outcome bin.
 
@@ -21,6 +21,6 @@ a Kalshi event link or ticker to replace it with a live public snapshot.
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-The math lives in `avilytics/engine.py` and has no framework dependencies.
+The math lives in `teasel/engine.py` and has no framework dependencies.
 The Flask layer only validates requests and serializes engine results; the
 frontend renders those server-computed values.

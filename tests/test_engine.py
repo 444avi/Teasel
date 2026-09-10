@@ -1,7 +1,7 @@
 from decimal import Decimal
 import unittest
 
-from avilytics.engine import (
+from teasel.engine import (
     FeeModel,
     Leg,
     analyze_position,

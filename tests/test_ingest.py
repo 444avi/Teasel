@@ -1,7 +1,7 @@
 from decimal import Decimal
 import unittest
 
-from avilytics.kalshi import (
+from teasel.kalshi import (
     extract_ask_cents,
     extract_threshold,
     ingest_markets,

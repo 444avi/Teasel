@@ -1,4 +1,4 @@
-"""Avilytics scalar-ladder analysis package."""
+"""Teasel scalar-ladder analysis package."""
 
 from .engine import (
     AnalysisResult,

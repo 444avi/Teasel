@@ -5,8 +5,8 @@ from decimal import Decimal
 
 from flask import Flask, jsonify, render_template, request
 
-from avilytics.engine import FeeModel, Leg, analyze_position
-from avilytics.kalshi import KalshiIngestError, fetch_ladder
+from teasel.engine import FeeModel, Leg, analyze_position
+from teasel.kalshi import KalshiIngestError, fetch_ladder
 
 
 def _demo_snapshot() -> dict:
@@ -112,7 +112,7 @@ def create_app() -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    debug = os.environ.get("AVILYTICS_DEBUG", "").lower() in {"1", "true", "yes"}
+    debug = os.environ.get("TEASEL_DEBUG", "").lower() in {"1", "true", "yes"}
     app.run(
         host="127.0.0.1",
         port=int(os.environ.get("PORT", "5050")),
