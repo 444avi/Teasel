@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Teasel · Options Payoff Lab{% endblock %}
+{% block description %}Teasel options payoff at expiration{% endblock %}
+{% block topbar_status %}<span class="snapshot-pill"><span></span> Manual entry</span>{% endblock %}
+{% block content %}
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Options payoff lab</p>
+        <h1>Map the whole trade.<br><em>Before you place it.</em></h1>
+      </div>
+      <p class="hero-copy">Enter each leg at the price you would trade, and see profit and loss at expiration across every price the underlying can settle at.</p>
+    </section>
+
+    <section class="fetch-panel" aria-label="Position setup">
+      <label for="spot-input">Position setup</label>
+      <div class="fetch-row options-setup">
+        <span class="link-glyph" aria-hidden="true">↗</span>
+        <label class="setup-field"><span>Spot price</span><input id="spot-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional"></label>
+        <label class="setup-field"><span>Preset</span><select id="preset-select"><option value="">Loading presets…</option></select></label>
+        <label class="setup-field"><span>Strike width</span><input id="width-input" type="number" min="0.01" step="0.01" value="5" inputmode="decimal"></label>
+        <label class="setup-field"><span>Qty</span><input id="preset-qty" type="number" min="1" max="10000" step="1" value="1" inputmode="numeric"></label>
+        <button id="preset-button" class="primary-button">Apply preset <span>→</span></button>
+      </div>
+      <div id="options-message" class="fetch-message" role="status"></div>
+    </section>
+
+    <section class="workspace options-workspace" aria-live="polite">
+      <div class="dashboard-grid">
+        <section class="legs-card card">
+          <div class="card-heading">
+            <div>
+              <p class="section-index">01 / Build position</p>
+              <h3>Legs</h3>
+            </div>
+            <p>Premiums are per share</p>
+          </div>
+          <div class="table-wrap">
+            <table id="legs-table" class="legs-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Long/Short</th>
+                  <th>Qty</th>
+                  <th>Strike</th>
+                  <th>Premium ($/sh)</th>
+                  <th class="commission-col">Commission ($)</th>
+                  <th><span class="visually-hidden">Remove</span></th>
+                </tr>
+              </thead>
+              <tbody id="legs-body"></tbody>
+            </table>
+          </div>
+          <div class="legs-footer">
+            <button id="add-leg-button" class="secondary-button" type="button">+ Add leg</button>
+            <details class="advanced">
+              <summary>Advanced</summary>
+              <div class="advanced-body">
+                <label class="rate-label">Contract multiplier <input id="multiplier-input" type="number" min="1" max="1000" step="1" value="100"></label>
+                <label class="switch-label">
+                  <input type="checkbox" id="commission-toggle">
+                  <span class="switch"><span></span></span>
+                  Per-leg commissions <small>total $ per leg</small>
+                </label>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <div class="right-rail">
+          <section class="analysis-card card">
+            <div class="card-heading">
+              <div>
+                <p class="section-index">02 / Outcome map</p>
+                <h3>Payoff at expiration</h3>
+              </div>
+              <div class="legend"><span class="gain-dot"></span> Gain <span class="loss-dot"></span> Loss</div>
+            </div>
+            <div class="chart-shell">
+              <svg id="options-chart" role="img" aria-label="Profit and loss at expiration by underlying price"></svg>
+              <div id="options-chart-empty" class="chart-empty">Add a leg to map payoff</div>
+            </div>
+          </section>
+
+          <section class="metrics-card card">
+            <div class="card-heading compact">
+              <div>
+                <p class="section-index">03 / Position diagnostics</p>
+                <h3>Risk &amp; reward</h3>
+              </div>
+              <span id="options-guard-badge" class="guard-badge good"><i></i> No flags</span>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric primary"><span>Net premium</span><strong id="metric-premium">—</strong><small id="metric-commissions">+ $0.00 commissions</small></div>
+              <div class="metric"><span>Max loss</span><strong id="metric-max-loss">—</strong><small>at expiration</small></div>
+              <div class="metric"><span>Max profit</span><strong id="metric-max-profit">—</strong><small>at expiration</small></div>
+              <div class="metric"><span>Breakevens</span><strong id="metric-breakevens" class="metric-text">—</strong><small>underlying price</small></div>
+              <div class="metric wide"><span>P/L at spot</span><strong id="metric-spot-pl">—</strong><small id="metric-spot-note">enter a spot price</small></div>
+            </div>
+            <div id="options-guards" class="guards"><span class="guard-icon">✓</span><p>No flags for this position.</p></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+{% endblock %}
+{% block footer_note %}Payoff at expiration only, using the prices you entered. Ignores early assignment, dividends and margin. Not investment advice.{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='options.js') }}"></script>
+{% endblock %}

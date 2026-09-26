@@ -381,6 +381,32 @@ class AppTests(unittest.TestCase):
         bad_strike = self.client.post("/api/options/preset", json={"name": "bear_put_spread", "spot": "3", "width": "5"})
         self.assertEqual(bad_strike.status_code, 422)
 
+    def test_options_page_requires_session_and_renders(self):
+        self._authenticate()
+        page = self.client.get("/options")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"Arboretum Investments", page.data)
+        self.assertIn(b"options.js", page.data)
+        self.assertIn(b"common.js", page.data)
+        self.assertIn(b"Manual entry", page.data)
+        self.assertIn(b'<a href="/options" aria-current="page">', page.data)
+        self.assertIn(b"return_to=http%3A%2F%2F127.0.0.1%3A5050%2Foptions", page.data)
+        self.assertEqual(page.headers["Cache-Control"], "private, no-store")
+        self.assertNotIn("\u2014", page.get_data(as_text=True).replace(">\u2014<", "><"))
+        for plan in ("premium", "max"):
+            with self.subTest(plan=plan):
+                self._authenticate(plan=plan)
+                self.assertEqual(self.client.get("/options").status_code, 200)
+
+    def test_ladder_page_still_renders(self):
+        self._authenticate()
+        home = self.client.get("/")
+        self.assertEqual(home.status_code, 200)
+        self.assertIn(b'id="ladder-body"', home.data)
+        self.assertIn(b"Snapshot mode", home.data)
+        self.assertIn(b'<a href="/" aria-current="page">', home.data)
+        self.assertLess(home.data.index(b"common.js"), home.data.index(b"app.js"))
+
 
 if __name__ == "__main__":
     unittest.main()
