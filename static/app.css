@@ -194,3 +194,15 @@ footer { width: min(1480px, calc(100% - clamp(32px, 7vw, 112px))); margin: 0 aut
   .metric.ev { grid-column: span 2; }
   footer { width: calc(100% - 28px); flex-direction: column; }
 }
+
+/* Tool tabs */
+.mode-tabs { display: flex; gap: 22px; margin: 0 auto 0 40px; align-self: stretch; }
+.mode-tabs a { display: flex; align-items: center; border-bottom: 2px solid transparent; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+.mode-tabs a:hover { color: var(--ink); }
+.mode-tabs a[aria-current=page] { border-bottom-color: var(--coral); color: var(--ink); }
+
+@media (max-width: 720px) {
+  .topbar { height: auto; flex-wrap: wrap; padding-top: 12px; row-gap: 8px; }
+  .mode-tabs { order: 3; width: 100%; margin: 0; }
+  .mode-tabs a { padding: 8px 0 10px; }
+}

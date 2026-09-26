@@ -1,33 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Teasel scalar-ladder payoff and market-coherence analysis">
-  <title>Teasel · Ladder Payoff Lab</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
-</head>
-<body>
-  <div class="grain"></div>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="Teasel home">
-      <span class="brand-mark"><i></i><i></i><i></i></span>
-      <span class="brand-copy">
-        <strong>Teasel</strong>
-        <small>Arboretum Investments</small>
-      </span>
-    </a>
-    <div class="topbar-right">
-      <span class="snapshot-pill"><span></span> Snapshot mode</span>
-      <span class="customer-identity">{{ user.email }} <b>{{ user.plan.value|capitalize }}</b></span>
-      <a class="account-link" href="{{ account_url }}">Account</a>
-      <a class="account-link" href="{{ logout_url }}">Log out</a>
-    </div>
-  </header>
-
+{% extends "base.html" %}
+{% block title %}Teasel · Ladder Payoff Lab{% endblock %}
+{% block description %}Teasel scalar-ladder payoff and market-coherence analysis{% endblock %}
+{% block topbar_status %}<span class="snapshot-pill"><span></span> Snapshot mode</span>{% endblock %}
+{% block content %}
   <main>
     <section class="hero">
       <div>
@@ -137,8 +112,8 @@
       </div>
     </section>
   </main>
-
-  <footer><span>TEASEL / ARBORETUM INVESTMENTS / FREE ACCOUNT · <a href="{{ account_url }}">Explore account options</a></span><span>Prices are snapshots. Review liquidity before execution.</span></footer>
+{% endblock %}
+{% block footer_note %}Prices are snapshots. Review liquidity before execution.{% endblock %}
+{% block scripts %}
   <script src="{{ url_for('static', filename='app.js') }}"></script>
-</body>
-</html>
+{% endblock %}
