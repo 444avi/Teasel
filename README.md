@@ -1,8 +1,30 @@
 # Teasel
 
-Teasel analyzes Kalshi scalar-ladder positions. Every page and API route requires a
-WorkOS-verified Arboretum account at the Free plan or above. Calculations remain in
-`teasel/engine.py`; Teasel has no WorkOS, database, Stripe, or signing-key secret.
+Teasel analyzes Kalshi scalar-ladder positions at `/` and manually entered options
+positions (payoff at expiration) at `/options`. Every page and API route requires a
+WorkOS-verified Arboretum account at the Free plan or above. Calculations remain on
+the server in `teasel/engine.py` (ladders) and `teasel/options.py` (options);
+Teasel has no WorkOS, database, Stripe, or signing-key secret.
+
+## Routes
+
+| Route | Purpose |
+|---|---|
+| `GET /` | Kalshi ladder page |
+| `GET /options` | Options payoff page |
+| `GET /api/demo` | Demo ladder snapshot |
+| `POST /api/fetch` | Fetch a Kalshi ladder (rate bucket `fetch`) |
+| `POST /api/analyze` | Analyze a ladder position (rate bucket `analyze`) |
+| `GET /api/options/presets` | Options preset catalog (static, not rate-limited) |
+| `POST /api/options/preset` | Build preset legs around a spot price (rate bucket `options_analyze`) |
+| `POST /api/options/analyze` | Options payoff at expiration (rate bucket `options_analyze`) |
+| `GET /healthz` | Public health check |
+
+`/api/options/analyze` accepts `{"spot": "101.25", "legs": [{"kind": "CALL",
+"direction": "LONG", "qty": 1, "strike": "100", "premium": "5.00",
+"multiplier": 100, "commission": "0.65"}]}`. `premium` is dollars per share
+(the entry price per share for `STOCK`), `commission` is total dollars for the
+leg, and `spot`, `multiplier` and `commission` are optional.
 
 ## Shared package and local setup
 
@@ -82,18 +104,24 @@ of redirecting forever. Verification outages return 503 without clearing cookies
 ## Resource limits
 
 `POST /api/fetch` allows 12 requests per verified account ID per minute;
-`POST /api/analyze` allows 120. The fixed-window counter is an atomic SQLite
+`POST /api/analyze` allows 120, and `POST /api/options/analyze` and
+`POST /api/options/preset` share a separate `options_analyze` bucket of 120. The fixed-window counter is an atomic SQLite
 transaction in `TEASEL_RATE_LIMIT_DB`, so both Gunicorn workers use the same
 counts. Set this to an absolute path on the host's writable local data volume
 (production example: `/data/teasel/rate_limits.sqlite3`), owned by the Teasel
 service user. Do not place it on separate worker filesystems or network storage.
-`TEASEL_FETCH_PER_MINUTE` and `TEASEL_ANALYZE_PER_MINUTE` can tune the limits.
+`TEASEL_FETCH_PER_MINUTE`, `TEASEL_ANALYZE_PER_MINUTE` and the optional
+`TEASEL_OPTIONS_ANALYZE_PER_MINUTE` (default 120) can tune the limits.
 An unavailable counter fails closed with JSON 503; exceeding a limit returns
 JSON 429 and `Retry-After` seconds. Counters are short-lived and can be removed
 after stopping Teasel; they are not account records or a backup target.
 
-Both POST routes cap JSON bodies at 64 KiB. Event input is limited to 256
-characters and analysis to 64 rungs. Oversized bodies return JSON 413 and
+Every API POST caps JSON bodies at 64 KiB. Event input is limited to 256
+characters and ladder analysis to 64 rungs. Options analysis allows at most 16
+legs; 1 to 10,000 contracts per option leg (1 to 1,000,000 shares per stock
+leg); strikes and spot in (0, $1,000,000]; premiums in [0, $1,000,000];
+multipliers 1 to 1,000; commissions in [0, $10,000] per leg; and at most 2
+decimal places on every price. Oversized bodies return JSON 413 and
 oversized fields return JSON 422. The browser shows a retry message for 429.
 
 ## Tests
@@ -111,14 +139,15 @@ real WorkOS email. The existing payoff and Kalshi-ingest tests still run.
 
 Identity-specific responses are `Cache-Control: private, no-store`; no JWT is
 placed in JavaScript storage. The server only accepts POST API requests from its
-own browser origin (`Origin` and `Sec-Fetch-Site` checks). `/api/fetch` and
-`/api/analyze` do not change account data, but they consume resources. Teasel
+own browser origin (`Origin` and `Sec-Fetch-Site` checks). The API POST routes
+do not change account data, but they consume resources. Teasel
 enforces per-account limits; an eligible Cloudflare zone can add a host-scoped
 IP limit. Do not log `Cookie`, JWTs, WorkOS callback codes, or email OTPs.
 
 At the Cloudflare edge, add an IP-based rule only when the zone plan exposes a
 Host match: restrict it to `teasel.arboretuminvestments.net` **and** the POST
-`/api/fetch` or `/api/analyze` paths. A path-only rule can affect other tools
+`/api/fetch`, `/api/analyze`, `/api/options/analyze` or `/api/options/preset`
+paths. A path-only rule can affect other tools
 under the same zone and must not be used. Cloudflare counters may be per data
 center and delayed; the SQLite account limit remains the authoritative origin
 control.
