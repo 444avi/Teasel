@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app import create_app
-from app import MAX_EVENT_CHARS, MAX_JSON_BYTES, MAX_RUNGS
+from app import MAX_EVENT_CHARS, MAX_JSON_BYTES, MAX_OPTION_LEGS, MAX_RUNGS
 from teasel.rate_limit import RateLimiter
 
 
@@ -41,7 +41,7 @@ class AppTests(unittest.TestCase):
         )
         self.app = create_app(
             auth_config=config, testing=True,
-            rate_limiter=RateLimiter(self.rate_db, {"fetch": 12, "analyze": 120}),
+            rate_limiter=RateLimiter(self.rate_db, {"fetch": 12, "analyze": 120, "options_analyze": 120}),
         )
         self.client = self.app.test_client()
 
@@ -266,6 +266,120 @@ class AppTests(unittest.TestCase):
         self.assertEqual(result["total_fees_cents"], 0)
         self.assertEqual(result["market_ev_cents"], -3.0)
         self.assertEqual(result["profit_probability"], .7)
+
+    BULL_CALL_SPREAD = {
+        "spot": "103",
+        "legs": [
+            {"kind": "CALL", "direction": "LONG", "qty": 1, "strike": "100", "premium": "6.00"},
+            {"kind": "CALL", "direction": "SHORT", "qty": 1, "strike": "110", "premium": "2.00"},
+        ],
+    }
+
+    def test_anonymous_options_routes_fail_closed(self):
+        page = self.client.get("/options")
+        self.assertEqual(page.status_code, 302)
+        self.assertEqual(urlsplit(page.headers["Location"]).netloc, "accounts.example")
+        for path, method in (
+            ("/api/options/analyze", "post"), ("/api/options/preset", "post"), ("/api/options/presets", "get"),
+        ):
+            with self.subTest(path=path):
+                response = getattr(self.client, method)(path, json={} if method == "post" else None)
+                self.assertEqual(response.status_code, 401)
+                self.assertTrue(response.is_json)
+                self.assertIn("auth_url", response.get_json())
+
+    def test_options_analyze_golden_spread(self):
+        self._authenticate()
+        response = self.client.post("/api/options/analyze", json=self.BULL_CALL_SPREAD)
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["max_profit_cents"], 60000)
+        self.assertEqual(result["max_loss_cents"], 40000)
+        self.assertEqual(result["breakevens"], [104.0])
+        self.assertEqual(result["pl_at_spot_cents"], -10000)
+        numeric = {"legs": [dict(leg, strike=float(leg["strike"]), premium=float(leg["premium"]))
+                            for leg in self.BULL_CALL_SPREAD["legs"]]}
+        self.assertEqual(self.client.post("/api/options/analyze", json=numeric).get_json()["breakevens"], [104.0])
+
+    def test_options_leg_caps(self):
+        self._authenticate()
+        leg = self.BULL_CALL_SPREAD["legs"][0]
+        cases = {
+            "too many legs": [leg] * (MAX_OPTION_LEGS + 1),
+            "qty 0": [dict(leg, qty=0)],
+            "qty over cap": [dict(leg, qty=10_001)],
+            "strike precision": [dict(leg, strike="100.001")],
+            "negative premium": [dict(leg, premium="-1")],
+            "unknown kind": [dict(leg, kind="FUTURE")],
+            "bad direction": [dict(leg, direction="UP")],
+            "zero strike": [dict(leg, strike="0")],
+            "multiplier over cap": [dict(leg, multiplier=1001)],
+            "commission over cap": [dict(leg, commission="10000.01")],
+            "no legs": [],
+        }
+        for name, legs in cases.items():
+            with self.subTest(case=name):
+                response = self.client.post("/api/options/analyze", json={"legs": legs})
+                self.assertEqual(response.status_code, 422)
+                self.assertIn("error", response.get_json())
+        self.assertEqual(
+            self.client.post("/api/options/analyze", json={"legs": [leg] * 17}).get_json()["error"],
+            "At most 16 legs are allowed.",
+        )
+        self.assertTrue(
+            self.client.post("/api/options/analyze", json={"legs": [leg, dict(leg, qty=0)]})
+            .get_json()["error"].startswith("Leg 2:")
+        )
+        self.assertEqual(self.client.post("/api/options/analyze", json=[]).status_code, 422)
+        stock = {"kind": "STOCK", "direction": "LONG", "qty": 1_000_000, "premium": "100"}
+        self.assertEqual(self.client.post("/api/options/analyze", json={"legs": [stock]}).status_code, 200)
+        stock["qty"] = 1_000_001
+        self.assertEqual(self.client.post("/api/options/analyze", json={"legs": [stock]}).status_code, 422)
+
+    def test_options_body_cap_and_origin(self):
+        self._authenticate()
+        for path in ("/api/options/analyze", "/api/options/preset"):
+            with self.subTest(path=path):
+                response = self.client.post(path, data=b"x" * (MAX_JSON_BYTES + 1), content_type="application/json")
+                self.assertEqual(response.status_code, 413)
+                self.assertTrue(response.is_json)
+                response = self.client.post(path, json=self.BULL_CALL_SPREAD, headers={"Origin": "https://evil.example"})
+                self.assertEqual(response.status_code, 403)
+
+    def test_options_rate_bucket_is_separate(self):
+        limiter = RateLimiter(self.rate_db, {"fetch": 12, "analyze": 120, "options_analyze": 2})
+        config = self.app.extensions["arboretum_auth"].config
+        client = create_app(auth_config=config, rate_limiter=limiter, testing=True).test_client()
+        client.set_cookie("arb_session", self._token())
+        for _ in range(2):
+            self.assertEqual(client.post("/api/options/analyze", json=self.BULL_CALL_SPREAD).status_code, 200)
+        limited = client.post("/api/options/analyze", json=self.BULL_CALL_SPREAD)
+        self.assertEqual(limited.status_code, 429)
+        self.assertIn("Retry-After", limited.headers)
+        preset = client.post("/api/options/preset", json={"name": "long_call", "spot": "100", "width": "5", "qty": 1})
+        self.assertEqual(preset.status_code, 429)
+        rungs = client.get("/api/demo").get_json()["rungs"]
+        self.assertEqual(client.post("/api/analyze", json={"rungs": rungs}).status_code, 200)
+        self.assertEqual(client.get("/api/options/presets").status_code, 200)
+
+    def test_options_presets_feed_analyze(self):
+        self._authenticate()
+        catalog = self.client.get("/api/options/presets").get_json()["presets"]
+        self.assertEqual(catalog[0], {"name": "long_call", "label": "Long call"})
+        response = self.client.post(
+            "/api/options/preset", json={"name": "iron_condor", "spot": "101.37", "width": "5", "qty": 1},
+        )
+        self.assertEqual(response.status_code, 200)
+        legs = response.get_json()["legs"]
+        self.assertEqual(len(legs), 4)
+        self.assertEqual([leg["strike"] for leg in legs], ["90", "95", "105", "110"])
+        analyzed = self.client.post("/api/options/analyze", json={"spot": "101.37", "legs": legs})
+        self.assertEqual(analyzed.status_code, 200)
+        self.assertIn("ZERO_PREMIUM", [guard["code"] for guard in analyzed.get_json()["guards"]])
+        unknown = self.client.post("/api/options/preset", json={"name": "nope", "spot": "100", "width": "5"})
+        self.assertEqual(unknown.status_code, 422)
+        bad_strike = self.client.post("/api/options/preset", json={"name": "bear_put_spread", "spot": "3", "width": "5"})
+        self.assertEqual(bad_strike.status_code, 422)
 
 
 if __name__ == "__main__":

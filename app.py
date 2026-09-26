@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
@@ -14,11 +14,19 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 from teasel.engine import FeeModel, Leg, analyze_position
 from teasel.kalshi import KalshiIngestError, fetch_ladder
+from teasel.options import OptionLeg, analyze_options
+from teasel.options_presets import build_preset, preset_catalog
 from teasel.rate_limit import RateLimiter
 
 MAX_JSON_BYTES = 64 * 1024
 MAX_EVENT_CHARS = 256
 MAX_RUNGS = 64
+MAX_OPTION_LEGS = 16
+MAX_OPTION_QTY = 10_000
+MAX_STOCK_SHARES = 1_000_000
+MAX_PRICE = Decimal("1000000")     # strike, spot, per-share premium ceiling
+MAX_MULTIPLIER = 1000
+MAX_COMMISSION = Decimal("10000")  # dollars per leg
 
 
 def _demo_snapshot() -> dict:
@@ -47,6 +55,81 @@ def _demo_snapshot() -> dict:
             }
             for market_id, threshold, yes_ask, no_ask, probability in rungs
         ],
+    }
+
+
+def _dollars(value: object, name: str) -> Decimal:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError(f"{name} must be a number")
+    try:
+        amount = Decimal(str(value).strip())
+    except InvalidOperation as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if not amount.is_finite() or amount != amount.quantize(Decimal("0.01")):
+        raise ValueError(f"{name} must have at most 2 decimal places")
+    return amount
+
+
+def _whole_number(value: object, name: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a whole number")
+    if isinstance(value, int):
+        return value
+    amount = _dollars(value, name)
+    if amount != amount.to_integral_value():
+        raise ValueError(f"{name} must be a whole number")
+    return int(amount)
+
+
+def _option_price(value: object, name: str) -> Decimal:
+    price = _dollars(value, name)
+    if not Decimal(0) < price <= MAX_PRICE:
+        raise ValueError(f"{name} must be greater than 0 and at most {MAX_PRICE}")
+    return price
+
+
+def _option_leg(raw: object) -> OptionLeg:
+    if not isinstance(raw, dict):
+        raise ValueError("expected an object")
+    kind = str(raw.get("kind") or "").upper()
+    if kind not in ("CALL", "PUT", "STOCK"):
+        raise ValueError("kind must be CALL, PUT or STOCK")
+    qty = _whole_number(raw.get("qty"), "qty")
+    qty_cap = MAX_STOCK_SHARES if kind == "STOCK" else MAX_OPTION_QTY
+    if not 1 <= qty <= qty_cap:
+        raise ValueError(f"qty must be from 1 to {qty_cap}")
+    strike = None
+    if kind != "STOCK":
+        strike = _option_price(raw.get("strike"), "strike")
+    premium = _dollars(raw.get("premium"), "premium")
+    if not Decimal(0) <= premium <= MAX_PRICE:
+        raise ValueError(f"premium must be from 0 to {MAX_PRICE}")
+    multiplier = _whole_number(raw.get("multiplier", 100), "multiplier")
+    if not 1 <= multiplier <= MAX_MULTIPLIER:
+        raise ValueError(f"multiplier must be from 1 to {MAX_MULTIPLIER}")
+    commission = _dollars(raw.get("commission") or 0, "commission")
+    if not Decimal(0) <= commission <= MAX_COMMISSION:
+        raise ValueError(f"commission must be from 0 to {MAX_COMMISSION}")
+    return OptionLeg(
+        kind=kind,
+        direction=str(raw.get("direction") or ""),
+        qty=qty,
+        strike=strike,
+        premium_cents=int(premium * 100),
+        multiplier=multiplier,
+        commission_cents=int(commission * 100),
+    )
+
+
+def _leg_json(leg: OptionLeg) -> dict:
+    return {
+        "kind": leg.kind,
+        "direction": leg.direction,
+        "qty": leg.qty,
+        "strike": None if leg.strike is None else format(leg.strike, "f"),
+        "premium": format(Decimal(leg.premium_cents) / 100, ".2f"),
+        "multiplier": leg.multiplier,
+        "commission": "0.00",
     }
 
 
@@ -125,6 +208,7 @@ def create_app(
                 {
                     "fetch": positive_limit("TEASEL_FETCH_PER_MINUTE", 12),
                     "analyze": positive_limit("TEASEL_ANALYZE_PER_MINUTE", 120),
+                    "options_analyze": positive_limit("TEASEL_OPTIONS_ANALYZE_PER_MINUTE", 120),
                 },
             )
         except (OSError, sqlite3.Error) as exc:
@@ -180,18 +264,20 @@ def create_app(
             return response
         return None
 
+    def page_context(return_path: str) -> dict:
+        accounts_url = config.login_url.removesuffix("/login")
+        account_url = accounts_url + "/account?" + urlencode(
+            {"return_to": public_url + return_path}
+        )
+        return {
+            "user": auth.current_user(), "account_url": account_url,
+            "logout_url": accounts_url + "/logout",
+        }
+
     @app.get("/")
     @auth.login_required()
     def index():
-        user = auth.current_user()
-        accounts_url = config.login_url.removesuffix("/login")
-        account_url = accounts_url + "/account?" + urlencode(
-            {"return_to": public_url + "/"}
-        )
-        return render_template(
-            "index.html", user=user, account_url=account_url,
-            logout_url=accounts_url + "/logout",
-        )
+        return render_template("index.html", active_tab="ladder", **page_context("/"))
 
     @app.get("/api/demo")
     @auth.login_required(api=True)
@@ -267,6 +353,65 @@ def create_app(
             return jsonify(response)
         except (ValueError, KeyError, TypeError) as exc:
             return jsonify({"error": str(exc)}), 422
+
+    @app.get("/options")
+    @auth.login_required()
+    def options_page():
+        return render_template("options.html", active_tab="options", **page_context("/options"))
+
+    @app.get("/api/options/presets")
+    @auth.login_required(api=True)
+    def options_presets():
+        return jsonify(presets=preset_catalog())
+
+    @app.post("/api/options/preset")
+    @auth.login_required(api=True)
+    def options_preset():
+        denial = limited("options_analyze")
+        if denial is not None:
+            return denial
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify(error="Expected a JSON object."), 422
+        try:
+            legs = build_preset(
+                str(payload.get("name") or ""),
+                _option_price(payload.get("spot"), "spot"),
+                _option_price(payload.get("width"), "width"),
+                _whole_number(payload.get("qty", 1), "qty"),
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            return jsonify(error=str(exc)), 422
+        return jsonify(legs=[_leg_json(leg) for leg in legs])
+
+    @app.post("/api/options/analyze")
+    @auth.login_required(api=True)
+    def options_analyze():
+        denial = limited("options_analyze")
+        if denial is not None:
+            return denial
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify(error="Expected a JSON object."), 422
+        raw_legs = payload.get("legs")
+        if not isinstance(raw_legs, list):
+            return jsonify(error="Expected a list of legs."), 422
+        if not raw_legs:
+            return jsonify(error="At least one leg is required."), 422
+        if len(raw_legs) > MAX_OPTION_LEGS:
+            return jsonify(error=f"At most {MAX_OPTION_LEGS} legs are allowed."), 422
+        legs: list[OptionLeg] = []
+        for number, raw in enumerate(raw_legs, start=1):
+            try:
+                legs.append(_option_leg(raw))
+            except (ValueError, KeyError, TypeError) as exc:
+                return jsonify(error=f"Leg {number}: {exc}"), 422
+        try:
+            spot = payload.get("spot")
+            spot = None if spot in (None, "") else _option_price(spot, "spot")
+            return jsonify(analyze_options(legs, spot=spot).to_dict())
+        except (ValueError, KeyError, TypeError) as exc:
+            return jsonify(error=str(exc)), 422
 
     return app
 
