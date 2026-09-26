@@ -1,6 +1,22 @@
 const state = { snapshot: null, lastSideIndex: null, requestId: 0 };
 const $ = (selector) => document.querySelector(selector);
 
+async function apiJson(response) {
+  const result = await response.json();
+  if (response.status === 401) {
+    window.location.assign(result.auth_url || "/");
+    throw new Error("Your session needs renewal. Redirecting to sign in…");
+  }
+  if (response.status === 403) throw new Error("Your account does not have access to this tool.");
+  if (response.status === 429) {
+    const seconds = Number(response.headers.get("Retry-After")) || 60;
+    throw new Error(`Request limit reached. Try again in ${seconds} seconds.`);
+  }
+  if (response.status === 503) throw new Error("Session verification is temporarily unavailable. Please retry shortly.");
+  if (!response.ok) throw new Error(result.error || "The request failed.");
+  return result;
+}
+
 function money(cents, signed = false) {
   if (cents === null || cents === undefined) return "—";
   const value = Number(cents) / 100;
@@ -110,9 +126,8 @@ async function analyze() {
   const requestId = ++state.requestId;
   try {
     const response = await fetch("/api/analyze", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(analysisPayload())});
-    const result = await response.json();
+    const result = await apiJson(response);
     if (requestId !== state.requestId) return;
-    if (!response.ok) throw new Error(result.error || "Analysis failed");
     $("#fetch-message").textContent = "";
     renderAnalysis(result);
   } catch (error) {
@@ -216,8 +231,7 @@ async function fetchSnapshot() {
   $("#fetch-message").textContent = "Reading the current public snapshot…";
   try {
     const response = await fetch("/api/fetch", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({event, probability_source: $("#probability-source").value})});
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Could not load this event");
+    const result = await apiJson(response);
     $("#fetch-message").textContent = "";
     renderSnapshot(result);
   } catch (error) {
@@ -233,9 +247,9 @@ $("#event-input").addEventListener("keydown", event => { if (event.key === "Ente
 $("#maker-toggle").addEventListener("change", analyze);
 $("#fee-rate").addEventListener("input", analyze);
 
-fetch("/api/demo").then(response => response.json()).then(snapshot => {
+fetch("/api/demo").then(apiJson).then(snapshot => {
   renderSnapshot(snapshot);
   // Seed the pinned acceptance position so the first view demonstrates the payoff comb.
   [[0,"NO"],[1,"YES"],[2,"NO"],[3,"YES"]].forEach(([index, side]) => setSide(index, side, true));
   analyze();
-}).catch(() => { $("#fetch-message").textContent = "Demo data could not be loaded."; });
+}).catch(error => { $("#fetch-message").textContent = error.message || "Demo data could not be loaded."; });

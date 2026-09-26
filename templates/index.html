@@ -22,7 +22,9 @@
     </a>
     <div class="topbar-right">
       <span class="snapshot-pill"><span></span> Snapshot mode</span>
-      <span class="desk-label">Arboretum Investments / Research desk</span>
+      <span class="customer-identity">{{ user.email }} <b>{{ user.plan.value|capitalize }}</b></span>
+      <a class="account-link" href="{{ account_url }}">Account</a>
+      <a class="account-link" href="{{ logout_url }}">Log out</a>
     </div>
   </header>
 
@@ -136,7 +138,7 @@
     </section>
   </main>
 
-  <footer><span>TEASEL / ARBORETUM INVESTMENTS / INTERNAL RESEARCH</span><span>Prices are snapshots. Review liquidity before execution.</span></footer>
+  <footer><span>TEASEL / ARBORETUM INVESTMENTS / FREE ACCOUNT · <a href="{{ account_url }}">Explore account options</a></span><span>Prices are snapshots. Review liquidity before execution.</span></footer>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

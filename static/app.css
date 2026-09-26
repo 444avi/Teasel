@@ -37,7 +37,11 @@ button { cursor: pointer; }
 .brand-copy { display: flex; align-items: baseline; gap: 10px; }
 .brand-copy strong { font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
 .brand-copy small { padding-left: 10px; border-left: 1px solid #c7c8c3; color: #626b78; font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
-.topbar-right { display: flex; align-items: center; gap: 24px; color: var(--muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.topbar-right { display: flex; align-items: center; gap: 16px; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .04em; flex-wrap: wrap; justify-content: flex-end; }
+.customer-identity { overflow-wrap: anywhere; }
+.customer-identity b { margin-left: 6px; text-transform: uppercase; }
+.account-link, footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.account-link:hover, footer a:hover { color: var(--ink); }
 .snapshot-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #c9cac4; border-radius: 20px; }
 .snapshot-pill span { width: 6px; height: 6px; background: var(--acid-dark); border-radius: 50%; box-shadow: 0 0 0 3px rgba(123,162,30,.12); }
 
