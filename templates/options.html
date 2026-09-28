@@ -106,5 +106,5 @@
 {% endblock %}
 {% block footer_note %}Payoff at expiration only, using the prices you entered. Ignores early assignment, dividends and margin. Not investment advice.{% endblock %}
 {% block scripts %}
-  <script src="{{ url_for('static', filename='options.js') }}"></script>
+  <script src="{{ asset_url('options.js') }}"></script>
 {% endblock %}

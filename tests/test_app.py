@@ -407,6 +407,21 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'<a href="/" aria-current="page">', home.data)
         self.assertLess(home.data.index(b"common.js"), home.data.index(b"app.js"))
 
+    def test_static_assets_are_content_versioned(self):
+        import hashlib
+        import re
+        from pathlib import Path
+        self._authenticate()
+        pages = self.client.get("/").get_data(as_text=True) + self.client.get("/options").get_data(as_text=True)
+        urls = set(re.findall(r'/static/([a-z]+\.(?:css|js))\?v=([0-9a-f]{12})"', pages))
+        self.assertEqual({name for name, _ in urls}, {"app.css", "common.js", "app.js", "options.js"})
+        static = Path(__file__).resolve().parent.parent / "static"
+        for name, version in urls:
+            with self.subTest(asset=name):
+                self.assertEqual(version, hashlib.sha256((static / name).read_bytes()).hexdigest()[:12])
+                self.assertEqual(self.client.get(f"/static/{name}?v={version}").status_code, 200)
+        self.assertNotRegex(pages, r'/static/[a-z]+\.(css|js)"')
+
 
 if __name__ == "__main__":
     unittest.main()

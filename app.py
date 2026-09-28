@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sqlite3
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, url_for
 from arboretum_auth import AuthConfig
 from arboretum_auth.flask_integration import FlaskAuth
 from arboretum_auth.verifier import SessionVerifier
@@ -219,6 +220,18 @@ def create_app(
     app.extensions["teasel_rate_limiter"] = rate_limiter
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
+    asset_hashes: dict[tuple[str, int, int], str] = {}
+
+    def asset_url(filename: str) -> str:
+        """Static URL with a content hash so a deploy never mixes cached old assets."""
+        path = Path(app.static_folder or "static") / filename
+        stat = path.stat()
+        key = (filename, stat.st_mtime_ns, stat.st_size)
+        if key not in asset_hashes:
+            asset_hashes[key] = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+        return url_for("static", filename=filename, v=asset_hashes[key])
+
+    app.jinja_env.globals["asset_url"] = asset_url
 
     @app.after_request
     def no_store_identity(response):

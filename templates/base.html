@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('app.css') }}">
 </head>
 <body>
   <div class="grain"></div>
@@ -35,7 +35,7 @@
 {% block content %}{% endblock %}
 
   <footer><span>TEASEL / ARBORETUM INVESTMENTS / FREE ACCOUNT · <a href="{{ account_url }}">Explore account options</a></span><span>{% block footer_note %}{% endblock %}</span></footer>
-  <script src="{{ url_for('static', filename='common.js') }}"></script>
+  <script src="{{ asset_url('common.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
